@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getEcoAlternatives } = require("../services/aiService");
+const { getEcoAlternatives } = require("../aiService");
 
 // Mock product database with eco metadata
 const PRODUCTS = [
