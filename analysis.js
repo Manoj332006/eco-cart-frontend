@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { analyzeProduct } = require("../aiService");
+const { analyzeProduct } = require("./aiService");
 
 /**
  * POST /api/analysis/product
