@@ -73,5 +73,11 @@ app.listen(PORT, () => {
   console.log(`\n🌿 EcoShop AI Backend running on http://localhost:${PORT}`);
   console.log(`📡 API docs available at http://localhost:${PORT}/api/health\n`);
 });
+// Keep-alive ping (prevents Render free tier sleep)
+setInterval(() => {
+  fetch('https://eco-cart-frontend.onrender.com/api/health')
+    .then(() => console.log('Keep-alive ping sent'))
+    .catch(() => {});
+}, 14 * 60 * 1000); // every 14 minutes
 
 module.exports = app;
