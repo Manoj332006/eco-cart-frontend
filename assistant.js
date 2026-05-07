@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { chatWithEcoAssistant } = require("../services/aiService");
+const { chatWithEcoAssistant } = require("../aiService");
 
 /**
  * POST /api/assistant/chat
