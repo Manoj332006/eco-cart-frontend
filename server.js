@@ -5,9 +5,9 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 
-const assistantRoutes = require("./routes/assistant");
-const productsRoutes = require("./routes/products");
-const analysisRoutes = require("./routes/analysis");
+const assistantRoutes = require("./assistant");
+const productsRoutes = require("./products");
+const analysisRoutes = require("./analysis");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
