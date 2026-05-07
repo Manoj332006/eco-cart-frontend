@@ -18,6 +18,11 @@ app.use(morgan("dev"));
 app.use(express.json({ limit: "10mb" }));
 
 // CORS
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:5500",
+  "https://eco-cart-back6.vercel.app/"  // 👈 add this
+];
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3000").split(",");
 app.use(cors({
   origin: (origin, callback) => {
