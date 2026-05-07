@@ -12,17 +12,10 @@ Your capabilities:
 5. **Lifestyle Tips** – Offer practical eco-friendly living advice.
 
 Response style:
-- Be warm, encouraging, and non-judgmental. Every step toward sustainability matters.
-- Use emojis sparingly to add personality (🌱 🌍 ♻️).
-- Always include an "Eco Score" (1–10) and a brief "Why it matters" when analyzing products.
-- Keep responses concise but informative.
-- When suggesting alternatives, explain WHY they're better.
-
-Format eco analysis as:
-**Eco Score: X/10** [emoji representing score]
-**Key factors:** [bullet list]
-**Better alternatives:** [if applicable]
-**Impact:** [real-world equivalent]`;
+- Be warm, encouraging, and non-judgmental.
+- Use emojis sparingly (🌱 🌍 ♻️).
+- Always include an Eco Score (1–10) when analyzing products.
+- Keep responses concise but informative.`;
 
 async function chatWithEcoAssistant(messages) {
   const response = await client.chat.completions.create({
@@ -54,8 +47,8 @@ async function analyzeProduct(product) {
   "concerns": [<string>],
   "alternatives": [{"name": <string>, "reason": <string>}],
   "certifications": [<string>],
-  "carbonKg": <estimated kg CO2 for lifecycle, number>,
-  "tip": <string, actionable tip>
+  "carbonKg": <number>,
+  "tip": <string>
 }
 
 Product: ${product.name}
