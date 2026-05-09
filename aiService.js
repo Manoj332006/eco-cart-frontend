@@ -3,170 +3,103 @@ const https = require("https");
 const ECO_SYSTEM_PROMPT = `You are GreenGuide, an expert AI shopping assistant specializing in eco-friendly, sustainable, and ethical consumer products. Your mission is to help users make environmentally conscious purchasing decisions.
 
 Your capabilities:
-1. **Eco Score Analysis** – Rate products 1–10 on environmental impact using: carbon footprint, recyclability, materials origin, production ethics, packaging, and longevity.
-2. **Sustainable Alternatives** – Suggest greener alternatives to conventional products.
-3. **Impact Insights** – Translate purchases into real-world environmental metrics (CO2 saved, water conserved, plastic avoided).
-4. **Shopping Guidance** – Help users find certified products (Fair Trade, B Corp, Rainforest Alliance, USDA Organic, etc.)
-5. **Lifestyle Tips** – Offer practical eco-friendly living advice.
+1. Eco Score Analysis - Rate products 1-10 on environmental impact.
+2. Sustainable Alternatives - Suggest greener alternatives.
+3. Impact Insights - Translate purchases into real-world environmental metrics.
+4. Shopping Guidance - Help users find certified products.
+5. Lifestyle Tips - Offer practical eco-friendly living advice.
 
 Response style:
-- Be warm, encouraging, and non-judgmental. Every step toward sustainability matters.
-- Use emojis sparingly to add personality.
+- Be warm, encouraging, and non-judgmental.
+- Use emojis sparingly.
 - Always include an Eco Score (1-10) when analyzing products.
 - Keep responses concise but informative.`;
 
-/**
- * Call Groq API using raw HTTPS (no SDK needed)
- */
-function callGroq(messages, systemPrompt) {
+function callAI(messages) {
   return new Promise((resolve, reject) => {
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY;
+
     if (!apiKey) {
-      return reject(new Error("GROQ_API_KEY environment variable is not set"));
+      return reject(new Error("No API key found. Set OPENROUTER_API_KEY in Render environment variables."));
     }
 
-    const allMessages = systemPrompt
-      ? [{ role: "system", content: systemPrompt }, ...messages]
-      : messages;
+    const isGroq = apiKey.startsWith("gsk_");
+
+    const hostname = isGroq ? "api.groq.com" : "openrouter.ai";
+    const path = isGroq ? "/openai/v1/chat/completions" : "/api/v1/chat/completions";
+    const model = isGroq ? "llama3-8b-8192" : "mistralai/mistral-7b-instruct:free";
 
     const body = JSON.stringify({
-      model: "llama3-8b-8192",
+      model,
       max_tokens: 1024,
-      messages: allMessages,
+      messages,
     });
 
-    const options = {
-      hostname: "api.groq.com",
-      path: "/openai/v1/chat/completions",
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Length": Buffer.byteLength(body),
-      },
+    const headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Length": Buffer.byteLength(body),
     };
 
-    const req = https.request(options, (res) => {
+    if (!isGroq) {
+      headers["HTTP-Referer"] = "https://greenguide.app";
+      headers["X-Title"] = "GreenGuide Eco Shopping";
+    }
+
+    const req = https.request({ hostname, path, method: "POST", headers }, (res) => {
       let data = "";
       res.on("data", (chunk) => { data += chunk; });
       res.on("end", () => {
         try {
           const parsed = JSON.parse(data);
-          if (parsed.error) {
-            return reject(new Error(`Groq API error: ${parsed.error.message}`));
-          }
+          if (parsed.error) return reject(new Error("AI error: " + JSON.stringify(parsed.error)));
           const content = parsed.choices?.[0]?.message?.content;
-          if (!content) {
-            return reject(new Error("No content in Groq response: " + data));
-          }
+          if (!content) return reject(new Error("Empty response: " + data.substring(0, 200)));
           resolve(content);
         } catch (e) {
-          reject(new Error("Failed to parse Groq response: " + data));
+          reject(new Error("Parse error: " + data.substring(0, 200)));
         }
       });
     });
 
-    req.on("error", reject);
+    req.on("error", (e) => reject(new Error("Network error: " + e.message)));
     req.write(body);
     req.end();
   });
 }
 
-/**
- * Chat with GreenGuide AI
- */
 async function chatWithEcoAssistant(messages) {
-  return await callGroq(messages, ECO_SYSTEM_PROMPT);
+  return await callAI([{ role: "system", content: ECO_SYSTEM_PROMPT }, ...messages]);
 }
 
-/**
- * Analyze a product's eco-friendliness
- */
 async function analyzeProduct(product) {
-  const prompt = `Analyze this product for environmental impact and return ONLY a valid JSON object with no markdown, no backticks, no extra text before or after:
-{
-  "ecoScore": 7,
-  "grade": "B",
-  "summary": "Brief 1-2 sentence summary here.",
-  "factors": {
-    "carbonFootprint": 6,
-    "recyclability": 8,
-    "materials": 7,
-    "packaging": 8,
-    "durability": 9,
-    "ethicalProduction": 6
-  },
-  "positives": ["Positive point 1", "Positive point 2"],
-  "concerns": ["Concern 1", "Concern 2"],
-  "alternatives": [{"name": "Alternative product", "reason": "Why it is better"}],
-  "certifications": ["Certification name"],
-  "carbonKg": 3.5,
-  "tip": "Actionable tip for the user."
-}
+  const prompt = `Analyze this product for environmental impact. Return ONLY valid JSON, no markdown, no backticks.
 
-Analyze this product and return JSON in exactly that format:
+Format: {"ecoScore":7,"grade":"B","summary":"Summary.","factors":{"carbonFootprint":6,"recyclability":8,"materials":7,"packaging":8,"durability":9,"ethicalProduction":6},"positives":["Point 1"],"concerns":["Concern 1"],"alternatives":[{"name":"Alt","reason":"Why"}],"certifications":["Cert"],"carbonKg":3.5,"tip":"Tip."}
+
 Product: ${product.name}
 Brand: ${product.brand || "Unknown"}
 Category: ${product.category || "General"}
-Description: ${product.description || "No description provided"}
+Description: ${product.description || "None"}
 
-IMPORTANT: Return ONLY the JSON object. No other text.`;
+ONLY return the JSON object.`;
 
-  const text = await callGroq([{ role: "user", content: prompt }]);
-
-  // Try to extract JSON even if model adds extra text
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("No JSON found in response: " + text.substring(0, 200));
-  }
-
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch (e) {
-    // Clean and retry
-    const clean = jsonMatch[0]
-      .replace(/[\x00-\x1F\x7F]/g, " ")
-      .replace(/,\s*}/g, "}")
-      .replace(/,\s*]/g, "]");
-    return JSON.parse(clean);
-  }
+  const text = await callAI([{ role: "user", content: prompt }]);
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON in response");
+  try { return JSON.parse(match[0]); }
+  catch (e) { return JSON.parse(match[0].replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")); }
 }
 
-/**
- * Get eco-friendly alternatives for a product category
- */
 async function getEcoAlternatives(category, budget = "medium") {
-  const prompt = `List 3 eco-friendly product alternatives for the category "${category}" with ${budget} budget.
-Return ONLY a valid JSON object, no markdown, no backticks:
-{
-  "category": "${category}",
-  "alternatives": [
-    {
-      "name": "Product name",
-      "brand": "Brand name",
-      "ecoScore": 8,
-      "priceRange": "$10-20",
-      "whyEco": "Why this is eco-friendly",
-      "certifications": ["Certification"],
-      "buyingTip": "Tip for buying"
-    }
-  ],
-  "generalTip": "General tip for this category."
-}
+  const prompt = `List 3 eco-friendly alternatives for "${category}" with ${budget} budget. ONLY return valid JSON:
+{"category":"${category}","alternatives":[{"name":"Product","brand":"Brand","ecoScore":8,"priceRange":"$10-20","whyEco":"Reason","certifications":["Cert"],"buyingTip":"Tip"}],"generalTip":"Tip."}`;
 
-IMPORTANT: Return ONLY the JSON object. No other text.`;
-
-  const text = await callGroq([{ role: "user", content: prompt }]);
-
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON in alternatives response");
-
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch (e) {
-    const clean = jsonMatch[0].replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
-    return JSON.parse(clean);
-  }
+  const text = await callAI([{ role: "user", content: prompt }]);
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON");
+  try { return JSON.parse(match[0]); }
+  catch (e) { return JSON.parse(match[0].replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")); }
 }
 
 module.exports = { chatWithEcoAssistant, analyzeProduct, getEcoAlternatives };
