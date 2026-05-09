@@ -27,7 +27,7 @@ function callAI(messages) {
 
     const hostname = isGroq ? "api.groq.com" : "openrouter.ai";
     const path = isGroq ? "/openai/v1/chat/completions" : "/api/v1/chat/completions";
-    const model = isGroq ? "llama3-8b-8192" : "mistralai/mistral-7b-instruct:free";
+    const model = isGroq ? "llama3-8b-8192" : "meta-llama/llama-3.1-8b-instruct:free";
 
     const body = JSON.stringify({
       model,
