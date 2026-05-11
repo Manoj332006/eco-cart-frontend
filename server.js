@@ -7,6 +7,7 @@ const morgan = require("morgan");
 const assistantRoutes = require("./assistant");
 const productsRoutes = require("./products");
 const analysisRoutes = require("./analysis");
+const searchRoutes = require("./search");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,20 +20,13 @@ app.use(cors());
 app.use("/api/assistant", assistantRoutes);
 app.use("/api/products", productsRoutes);
 app.use("/api/analysis", analysisRoutes);
+app.use("/api/search", searchRoutes);
 
 app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    service: "EcoShop AI Backend",
-    timestamp: new Date().toISOString(),
-    version: "1.0.0",
-  });
+  res.json({ status: "ok", service: "EcoShop AI Backend", timestamp: new Date().toISOString(), version: "1.0.0" });
 });
 
-app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
-});
-
+app.use((req, res) => res.status(404).json({ error: "Route not found" }));
 app.use((err, req, res, next) => {
   console.error("Server Error:", err.message);
   res.status(500).json({ error: err.message || "Internal server error" });
